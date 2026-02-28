@@ -28,6 +28,11 @@
                 <label><input type="checkbox" id="exclude-gateway"> 排除网关 (通常为第一个可用 IP, e.g. .1)</label>
             </div>
 
+            <div class="input-group">
+                <label for="custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100):</label>
+                <textarea id="custom-exclude" rows="5" placeholder="192.168.1.100"></textarea>
+            </div>
+
             <button onclick="convertCIDRToIP()">转换</button>
 
             <div class="output-group">

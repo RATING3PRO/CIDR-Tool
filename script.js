@@ -56,14 +56,9 @@ function getCIDRRange(cidr) {
     const mask = parseInt(maskStr);
     const ipLong = ipToLong(ip);
     
-    // Calculate network address
-    // 0xFFFFFFFF is -1 in JS bitwise, so use >>> 0 to keep it unsigned
     const offset = 32 - mask;
     const networkMask = (0xFFFFFFFF << offset) >>> 0;
     const networkAddress = (ipLong & networkMask) >>> 0;
-    
-    // Calculate broadcast address
-    // Invert mask and OR with network address
     const broadcastAddress = (networkAddress | (~networkMask >>> 0)) >>> 0;
     
     return {
@@ -73,24 +68,49 @@ function getCIDRRange(cidr) {
     };
 }
 
+// Logic: Range Splitting for Exclusions
+function splitRange(start, end, excludeIPs) {
+    let ranges = [{start: start, end: end}];
+    
+    // excludeIPs should be a sorted Set or Array of unique integers
+    const sortedExcludes = Array.from(new Set(excludeIPs)).sort((a, b) => a - b);
+    
+    sortedExcludes.forEach(exclude => {
+        const newRanges = [];
+        ranges.forEach(range => {
+            if (exclude >= range.start && exclude <= range.end) {
+                // Split logic
+                // 1. Left part: range.start to exclude - 1
+                if (range.start <= exclude - 1) {
+                    newRanges.push({start: range.start, end: exclude - 1});
+                }
+                // 2. Right part: exclude + 1 to range.end
+                if (exclude + 1 <= range.end) {
+                    newRanges.push({start: exclude + 1, end: range.end});
+                }
+            } else {
+                // Keep original
+                newRanges.push(range);
+            }
+        });
+        ranges = newRanges;
+    });
+    
+    return ranges;
+}
+
 // Logic: Range -> CIDR List
 function rangeToCIDR(startIp, endIp) {
     let start = ipToLong(startIp);
     let end = ipToLong(endIp);
     const cidrs = [];
     
-    // Validate
     if (start === null || end === null || start > end) {
         return [`Error: Invalid range ${startIp}-${endIp}`];
     }
 
     while (start <= end) {
-        // Find the lowest set bit (alignment)
-        // If start is 0, lowest set bit is conceptually 32 (can fit any mask)
-        // But we are limited by the block size
-        
         let maxBlockSize = 1;
-        // Count trailing zeros to find max alignment
         let temp = start;
         let alignmentBits = 0;
         
@@ -103,26 +123,10 @@ function rangeToCIDR(startIp, endIp) {
             }
         }
         
-        // Max block size based on alignment is 2^alignmentBits
-        // We also need block size <= (end - start + 1)
-        // Find largest n such that 2^n <= (end - start + 1) AND n <= alignmentBits
-        
         const rangeSize = end - start + 1;
         let n = 0;
         
-        // Find largest power of 2 that fits in rangeSize
-        // We can loop n from 32 down to 0
         for (let i = 32; i >= 0; i--) {
-            // Check if 2^i <= rangeSize
-            // 1 << 31 is negative, so be careful with large shifts
-            // rangeSize can be up to 2^32
-            const size = (i === 32) ? 0xFFFFFFFF + 1 : (1 << i) >>> 0; // JS numbers are doubles, so 2^32 is fine
-            
-            // Wait, bitwise operators in JS treat operands as 32-bit signed integers.
-            // 1 << 31 is -2147483648.
-            // Let's use Math.pow for safety with large numbers, or just rely on the fact that rangeSize is usually checked with small n.
-            // Actually, we can just check if (start + size - 1) <= end
-            
             const blockSize = Math.pow(2, i);
             if (blockSize <= rangeSize && i <= alignmentBits) {
                 n = i;
@@ -132,8 +136,6 @@ function rangeToCIDR(startIp, endIp) {
         
         const mask = 32 - n;
         cidrs.push(longToIp(start) + '/' + mask);
-        
-        // Move start
         start += Math.pow(2, n);
     }
     
@@ -146,10 +148,20 @@ function convertCIDRToIP() {
     const excludeNetwork = document.getElementById('exclude-network').checked;
     const excludeBroadcast = document.getElementById('exclude-broadcast').checked;
     const excludeGateway = document.getElementById('exclude-gateway').checked;
+    const customExcludeInput = document.getElementById('custom-exclude').value;
     
     const lines = input.split('\n').map(l => l.trim()).filter(l => l);
     const results = [];
     
+    // Parse Custom Excludes
+    const customExcludes = [];
+    const customLines = customExcludeInput.split('\n').map(l => l.trim()).filter(l => l);
+    customLines.forEach(l => {
+        if (isValidIP(l)) {
+            customExcludes.push(ipToLong(l));
+        }
+    });
+
     lines.forEach(line => {
         if (!isValidCIDR(line)) {
             if (line) results.push(`Error: Invalid CIDR ${line}`);
@@ -157,46 +169,49 @@ function convertCIDRToIP() {
         }
         
         const range = getCIDRRange(line);
-        let start = range.start;
-        let end = range.end;
-        
-        // Logic for exclusions
-        // Network Address: Always the first IP in the subnet block (start)
+        const rangeExcludes = [];
+
+        // Network Address
         if (excludeNetwork) {
-            if (start === range.start) start++;
+            rangeExcludes.push(range.start);
         }
         
-        // Broadcast Address: Always the last IP in the subnet block (end)
+        // Broadcast Address
         if (excludeBroadcast) {
-            if (end === range.end) end--;
+            rangeExcludes.push(range.end);
         }
         
-        // Gateway: Usually the first usable IP (Network + 1)
-        // If we already excluded Network, Start is now Network + 1.
-        // If we want to exclude Gateway, we should skip Network + 1.
+        // Gateway: Network + 1
         if (excludeGateway) {
-            const gateway = range.start + 1;
-            // If our current start covers the gateway, move past it
-            if (start <= gateway) {
-                start = gateway + 1;
-            }
-            // Note: If gateway was the broadcast address (e.g. /31 or /32), this might push start > end
+            rangeExcludes.push(range.start + 1);
         }
+
+        // Custom Excludes
+        // Only include those that fall within the current range to keep the set small (optimization)
+        customExcludes.forEach(ip => {
+            if (ip >= range.start && ip <= range.end) {
+                rangeExcludes.push(ip);
+            }
+        });
+
+        // Apply splitting
+        const finalRanges = splitRange(range.start, range.end, rangeExcludes);
         
-        if (start > end) {
+        if (finalRanges.length === 0) {
             results.push(`${line}: No IPs left (Empty Range)`);
         } else {
-            // Output format: Start IP - End IP
-            if (start === end) {
-                results.push(longToIp(start));
-            } else {
-                results.push(`${longToIp(start)} - ${longToIp(end)}`);
-            }
+            finalRanges.forEach(r => {
+                if (r.start === r.end) {
+                    results.push(longToIp(r.start));
+                } else {
+                    results.push(`${longToIp(r.start)} - ${longToIp(r.end)}`);
+                }
+            });
         }
     });
     
     document.getElementById('cidr-output').value = results.join('\n');
-    document.getElementById('cidr-stats').innerText = `Total Rows: ${results.length}`;
+    document.getElementById('cidr-stats').innerText = `Total Ranges: ${results.length}`;
 }
 
 function convertIPToCIDR() {
@@ -229,19 +244,12 @@ function convertIPToCIDR() {
     document.getElementById('ip-stats').innerText = `Total CIDRs: ${results.length}`;
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    // Set default tab
-    switchTab('cidr-to-ip');
-});
-
 // Copy to Clipboard
 function copyToClipboard(elementId) {
     const element = document.getElementById(elementId);
     element.select();
     document.execCommand('copy');
     
-    // Feedback (optional, could use a toast)
     const btn = document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`);
     const originalText = btn.innerText;
     btn.innerText = '已复制!';
@@ -249,3 +257,8 @@ function copyToClipboard(elementId) {
         btn.innerText = originalText;
     }, 2000);
 }
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    switchTab('cidr-to-ip');
+});
