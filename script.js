@@ -101,12 +101,22 @@ function splitRange(start, end, excludeIPs) {
 
 // Logic: Range -> CIDR List
 function rangeToCIDR(startIp, endIp) {
-    let start = ipToLong(startIp);
-    let end = ipToLong(endIp);
+    let start;
+    let end;
+    
+    // Support numeric input or string input
+    if (typeof startIp === 'number') start = startIp;
+    else start = ipToLong(startIp);
+    
+    if (typeof endIp === 'number') end = endIp;
+    else end = ipToLong(endIp);
+
     const cidrs = [];
     
     if (start === null || end === null || start > end) {
-        return [`Error: Invalid range ${startIp}-${endIp}`];
+        // If passed as numbers, they might be valid but start > end
+        // If passed as strings and invalid, ipToLong returns null
+        return []; 
     }
 
     while (start <= end) {
@@ -187,7 +197,6 @@ function convertCIDRToIP() {
         }
 
         // Custom Excludes
-        // Only include those that fall within the current range to keep the set small (optimization)
         customExcludes.forEach(ip => {
             if (ip >= range.start && ip <= range.end) {
                 rangeExcludes.push(ip);
@@ -216,26 +225,85 @@ function convertCIDRToIP() {
 
 function convertIPToCIDR() {
     const input = document.getElementById('ip-input').value;
+    const excludeNetwork = document.getElementById('ip-exclude-network').checked;
+    const excludeBroadcast = document.getElementById('ip-exclude-broadcast').checked;
+    const excludeGateway = document.getElementById('ip-exclude-gateway').checked;
+    const customExcludeInput = document.getElementById('ip-custom-exclude').value;
+
     const lines = input.split('\n').map(l => l.trim()).filter(l => l);
     const results = [];
     
+    // Parse Custom Excludes
+    const customExcludes = [];
+    const customLines = customExcludeInput.split('\n').map(l => l.trim()).filter(l => l);
+    customLines.forEach(l => {
+        if (isValidIP(l)) {
+            customExcludes.push(ipToLong(l));
+        }
+    });
+    
     lines.forEach(line => {
+        let start = null;
+        let end = null;
+        let isValid = false;
+
         // Handle "IP - IP" format
         if (line.includes('-')) {
             const parts = line.split('-').map(s => s.trim());
             if (parts.length === 2 && isValidIP(parts[0]) && isValidIP(parts[1])) {
-                const cidrs = rangeToCIDR(parts[0], parts[1]);
-                results.push(...cidrs);
-            } else {
-                results.push(`Error: Invalid Range ${line}`);
+                start = ipToLong(parts[0]);
+                end = ipToLong(parts[1]);
+                isValid = true;
             }
         } 
         // Handle Single IP
         else if (isValidIP(line)) {
-            results.push(`${line}/32`);
-        } 
-        // Handle invalid
-        else {
+            start = ipToLong(line);
+            end = start;
+            isValid = true;
+        }
+
+        if (isValid && start !== null && end !== null) {
+             if (start > end) {
+                 results.push(`Error: Invalid Range ${line} (Start > End)`);
+                 return;
+             }
+
+             const rangeExcludes = [];
+
+             // Apply Exclusions based on Range logic (Start/End)
+             // Note: This applies to the *input range*, which might not be a CIDR block.
+             if (excludeNetwork) {
+                 rangeExcludes.push(start);
+             }
+             if (excludeBroadcast) {
+                 rangeExcludes.push(end);
+             }
+             if (excludeGateway) {
+                 rangeExcludes.push(start + 1);
+             }
+             
+             // Custom Excludes
+             customExcludes.forEach(ip => {
+                 if (ip >= start && ip <= end) {
+                     rangeExcludes.push(ip);
+                 }
+             });
+
+             // Split Range
+             const finalRanges = splitRange(start, end, rangeExcludes);
+
+             if (finalRanges.length === 0) {
+                 results.push(`${line}: No IPs left`);
+             } else {
+                 finalRanges.forEach(r => {
+                     // Convert each sub-range to CIDR
+                     const cidrs = rangeToCIDR(r.start, r.end);
+                     results.push(...cidrs);
+                 });
+             }
+
+        } else {
             results.push(`Error: Invalid Input ${line}`);
         }
     });

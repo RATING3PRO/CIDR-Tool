@@ -52,6 +52,17 @@
                 <textarea id="ip-input" rows="10" placeholder="192.168.1.1&#10;192.168.1.1-192.168.1.10"></textarea>
             </div>
 
+            <div class="options">
+                <label><input type="checkbox" id="ip-exclude-network"> 排除网络地址 (Range Start)</label>
+                <label><input type="checkbox" id="ip-exclude-broadcast"> 排除广播地址 (Range End)</label>
+                <label><input type="checkbox" id="ip-exclude-gateway"> 排除网关 (Range Start + 1)</label>
+            </div>
+
+            <div class="input-group">
+                <label for="ip-custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100):</label>
+                <textarea id="ip-custom-exclude" rows="5" placeholder="192.168.1.100"></textarea>
+            </div>
+
             <button onclick="convertIPToCIDR()">转换</button>
 
             <div class="output-group">
