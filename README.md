@@ -1,7 +1,6 @@
 # CIDR 转换工具
 
-这是一个简单、纯静态的 CIDR 转换工具，支持将 IP/IP 范围转换为 CIDR，以及将 CIDR 转换为 IP 范围。专为 Cloudflare Pages 部署设计。
-
+这是一个简单、纯静态的 CIDR 转换工具，支持将 IP/IP 范围转换为 CIDR，以及将 CIDR 转换为 IP 范围。
 ## 功能
 
 *   **CIDR 转 IP/范围**:
@@ -10,7 +9,9 @@
         *   排除网络地址 (Network Address, e.g. .0)
         *   排除广播地址 (Broadcast Address, e.g. .255)
         *   排除网关 (通常为第一个可用 IP, e.g. .1)
+        *   自定义排除 (e.g. 192.168.1.5)
 *   **IP/范围 转 CIDR**:
+    *   上述排除选项
     *   支持单 IP (e.g. 192.168.1.1)
     *   支持 IP 范围 (e.g. 192.168.1.1-192.168.1.10)
     *   自动计算最优 CIDR 列表。
