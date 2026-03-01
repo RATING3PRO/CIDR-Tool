@@ -11,33 +11,46 @@
         <h1>CIDR 转换工具</h1>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('cidr-to-ip')">CIDR 转 IP/范围</button>
-            <button class="tab-btn" onclick="switchTab('ip-to-cidr')">IP/范围 转 CIDR</button>
+            <button class="tab-btn active" onclick="switchTab('cidr-to-ip')">CIDR 转 IP</button>
+            <button class="tab-btn" onclick="switchTab('ip-to-cidr')">IP 转 CIDR (聚合)</button>
         </div>
 
         <!-- CIDR 转 IP/范围 -->
         <div id="cidr-to-ip" class="tab-content active">
             <div class="input-group">
                 <label for="cidr-input">输入 CIDR (每行一个，支持 IPv4/IPv6，例如 192.168.1.0/24 或 2001:db8::/32):</label>
-                <textarea id="cidr-input" rows="10" placeholder="192.168.1.0/24&#10;2001:db8::/32"></textarea>
+                <textarea id="cidr-input" rows="8" placeholder="192.168.1.0/24&#10;2001:db8::/32"></textarea>
             </div>
             
-            <div class="options">
-                <label><input type="checkbox" id="exclude-network"> 排除网络地址 (Network Address)</label>
-                <label><input type="checkbox" id="exclude-broadcast"> 排除广播地址 (Broadcast Address)</label>
-                <label><input type="checkbox" id="exclude-gateway"> 排除网关 (通常为第一个可用 IP, e.g. .1)</label>
+            <div class="options-container">
+                <div class="options-section">
+                    <label class="section-label">输出格式:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="cidr-output-format" value="range" checked> IP 范围 (Start - End)</label>
+                        <label><input type="radio" name="cidr-output-format" value="list"> IP 列表 (逐个 IP)</label>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <label class="section-label">排除选项:</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="exclude-network"> 排除网络地址 (Start)</label>
+                        <label><input type="checkbox" id="exclude-broadcast"> 排除广播地址 (End)</label>
+                        <label><input type="checkbox" id="exclude-gateway"> 排除网关 (Start + 1)</label>
+                    </div>
+                </div>
             </div>
 
             <div class="input-group">
-                <label for="custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100 或 2001:db8::1):</label>
-                <textarea id="custom-exclude" rows="5" placeholder="192.168.1.100&#10;2001:db8::1"></textarea>
+                <label for="custom-exclude">排除其他 IP (每行一个):</label>
+                <textarea id="custom-exclude" rows="3" placeholder="192.168.1.100&#10;2001:db8::1"></textarea>
             </div>
 
             <button onclick="convertCIDRToIP()">转换</button>
 
             <div class="output-group">
                 <div class="output-header">
-                    <label for="cidr-output">结果 (IP 列表/范围):</label>
+                    <label for="cidr-output">结果:</label>
                     <button class="copy-btn" onclick="copyToClipboard('cidr-output')">复制结果</button>
                 </div>
                 <textarea id="cidr-output" rows="10" readonly></textarea>
@@ -48,26 +61,39 @@
         <!-- IP/范围 转 CIDR -->
         <div id="ip-to-cidr" class="tab-content">
             <div class="input-group">
-                <label for="ip-input">输入 IP 或 IP 范围 (每行一个，例如 192.168.1.1 或 192.168.1.1-192.168.1.10):</label>
-                <textarea id="ip-input" rows="10" placeholder="192.168.1.1&#10;192.168.1.1-192.168.1.10&#10;2001:db8::1-2001:db8::10"></textarea>
+                <label for="ip-input">输入 IP、IP 范围或 CIDR (支持混合输入，将自动聚合):</label>
+                <textarea id="ip-input" rows="8" placeholder="192.168.1.1&#10;192.168.1.2&#10;192.168.1.10-192.168.1.20&#10;10.0.0.0/24"></textarea>
             </div>
 
-            <div class="options">
-                <label><input type="checkbox" id="ip-exclude-network"> 排除网络地址 (Range Start)</label>
-                <label><input type="checkbox" id="ip-exclude-broadcast"> 排除广播地址 (Range End)</label>
-                <label><input type="checkbox" id="ip-exclude-gateway"> 排除网关 (Range Start + 1)</label>
+            <div class="options-container">
+                <div class="options-section">
+                    <label class="section-label">输出格式:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="ip-output-format" value="cidr" checked> CIDR 列表</label>
+                        <label><input type="radio" name="ip-output-format" value="range"> IP 范围 (Start - End)</label>
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <label class="section-label">排除选项:</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="ip-exclude-network"> 排除网络地址 (Range Start)</label>
+                        <label><input type="checkbox" id="ip-exclude-broadcast"> 排除广播地址 (Range End)</label>
+                        <label><input type="checkbox" id="ip-exclude-gateway"> 排除网关 (Range Start + 1)</label>
+                    </div>
+                </div>
             </div>
 
             <div class="input-group">
-                <label for="ip-custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100):</label>
-                <textarea id="ip-custom-exclude" rows="5" placeholder="192.168.1.100&#10;2001:db8::5"></textarea>
+                <label for="ip-custom-exclude">排除其他 IP (每行一个):</label>
+                <textarea id="ip-custom-exclude" rows="3" placeholder="192.168.1.100"></textarea>
             </div>
 
-            <button onclick="convertIPToCIDR()">转换</button>
+            <button onclick="convertIPToCIDR()">转换 (聚合)</button>
 
             <div class="output-group">
                 <div class="output-header">
-                    <label for="ip-output">结果 (CIDR 列表):</label>
+                    <label for="ip-output">结果:</label>
                     <button class="copy-btn" onclick="copyToClipboard('ip-output')">复制结果</button>
                 </div>
                 <textarea id="ip-output" rows="10" readonly></textarea>
