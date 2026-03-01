@@ -18,8 +18,8 @@
         <!-- CIDR 转 IP/范围 -->
         <div id="cidr-to-ip" class="tab-content active">
             <div class="input-group">
-                <label for="cidr-input">输入 CIDR (每行一个，例如 192.168.1.0/24):</label>
-                <textarea id="cidr-input" rows="10" placeholder="192.168.1.0/24"></textarea>
+                <label for="cidr-input">输入 CIDR (每行一个，支持 IPv4/IPv6，例如 192.168.1.0/24 或 2001:db8::/32):</label>
+                <textarea id="cidr-input" rows="10" placeholder="192.168.1.0/24&#10;2001:db8::/32"></textarea>
             </div>
             
             <div class="options">
@@ -29,8 +29,8 @@
             </div>
 
             <div class="input-group">
-                <label for="custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100):</label>
-                <textarea id="custom-exclude" rows="5" placeholder="192.168.1.100"></textarea>
+                <label for="custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100 或 2001:db8::1):</label>
+                <textarea id="custom-exclude" rows="5" placeholder="192.168.1.100&#10;2001:db8::1"></textarea>
             </div>
 
             <button onclick="convertCIDRToIP()">转换</button>
@@ -49,7 +49,7 @@
         <div id="ip-to-cidr" class="tab-content">
             <div class="input-group">
                 <label for="ip-input">输入 IP 或 IP 范围 (每行一个，例如 192.168.1.1 或 192.168.1.1-192.168.1.10):</label>
-                <textarea id="ip-input" rows="10" placeholder="192.168.1.1&#10;192.168.1.1-192.168.1.10"></textarea>
+                <textarea id="ip-input" rows="10" placeholder="192.168.1.1&#10;192.168.1.1-192.168.1.10&#10;2001:db8::1-2001:db8::10"></textarea>
             </div>
 
             <div class="options">
@@ -60,7 +60,7 @@
 
             <div class="input-group">
                 <label for="ip-custom-exclude">排除其他 IP (每行一个，例如 192.168.1.100):</label>
-                <textarea id="ip-custom-exclude" rows="5" placeholder="192.168.1.100"></textarea>
+                <textarea id="ip-custom-exclude" rows="5" placeholder="192.168.1.100&#10;2001:db8::5"></textarea>
             </div>
 
             <button onclick="convertIPToCIDR()">转换</button>
